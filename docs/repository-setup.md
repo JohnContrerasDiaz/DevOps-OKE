@@ -1,13 +1,30 @@
 # Repositorio Git DevOps-OKE
 
-Este directorio esta preparado para funcionar como repositorio Git independiente.
+Repositorio remoto:
 
-## Estado de credenciales en esta sesion
+```text
+https://github.com/JohnContrerasDiaz/DevOps-OKE.git
+```
 
-La maquina tiene `credential.helper=manager` configurado globalmente en Git, pero `cmdkey /list` no mostro credenciales guardadas y `gh` no esta disponible en PATH. Por eso el repositorio local puede inicializarse, pero la creacion automatica del remoto requiere una de estas opciones:
+## Uso desde OCI Cloud Shell
 
-1. Instalar e iniciar sesion con GitHub CLI (`gh auth login`) y ejecutar `gh repo create DevOps-OKE --private --source . --remote origin --push`.
-2. Crear el repositorio remoto manualmente en GitHub/Azure DevOps y luego ejecutar `git remote add origin <remote-url>`.
-3. Agregar credenciales al Windows Credential Manager para el host remoto y hacer `git push -u origin main`.
+Cloud Shell trae Git y OCI CLI preautenticado. Para trabajar el workshop desde Cloud Shell:
 
-No almacenar tokens ni passwords dentro del repositorio.
+```bash
+git clone https://github.com/JohnContrerasDiaz/DevOps-OKE.git
+cd DevOps-OKE
+git status --short
+```
+
+Si el repositorio es privado, autenticar GitHub con el mecanismo aprobado para el workshop. No poner tokens en la URL versionada ni dentro de archivos del repositorio.
+
+## Publicar cambios futuros
+
+```bash
+git status --short
+git add .
+git commit -m "Update workshop"
+git push origin main
+```
+
+No almacenar tokens, auth tokens OCI, archivos PEM ni passwords dentro del repositorio.

@@ -1,14 +1,16 @@
 # DevOps-OKE Workshop
 
-Workshop para desplegar dos microservicios en Oracle Kubernetes Engine (OKE):
+Workshop para desplegar dos microservicios en Oracle Kubernetes Engine (OKE) usando OCI Cloud Shell como terminal principal:
 
 - `backend-ai`: API FastAPI que invoca OCI Generative AI usando instance principal.
 - `frontend-ai`: interfaz Streamlit que consume el backend dentro del cluster.
 
-El flujo completo cubre build de imagenes Docker, push a OCIR, creacion del cluster OKE con wizard de consola, IAM con dynamic group y policies, despliegue en Kubernetes y validacion.
+El flujo completo cubre clone del repositorio en Cloud Shell, build de imagenes con `docker`/`podman`, push a OCIR, creacion del cluster OKE con wizard de consola, IAM con dynamic group y policies, despliegue en Kubernetes y validacion.
 
 ## Referencias oficiales usadas
 
+- OCI Cloud Shell: https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cloudshellintro.htm
+- Using Cloud Shell with OKE: https://docs.oracle.com/en-us/iaas/Content/API/Concepts/devcloudshellgettingstarted.htm
 - OCI SDK authentication methods: https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdk_authentication_methods.htm
 - Calling services from an instance: https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm
 - Creating Kubernetes clusters using Console workflows: https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingclusterusingoke.htm
@@ -28,37 +30,64 @@ DevOps-OKE/
     k8s/                # Template Kubernetes
   docs/
     iam-dynamic-group-policies.md
+    repository-setup.md
   scripts/
-    build-and-push.ps1
-    create-ocir-repositories.ps1
-    render-k8s-manifest.ps1
+    build-and-push.sh
+    create-ocir-repositories.sh
+    render-k8s-manifest.sh
 ```
 
 ## Prerrequisitos
 
+- Acceso a OCI Console y permiso para usar Cloud Shell: `allow group <group-name> to use cloud-shell in tenancy`.
 - Usuario OCI con permisos para crear OKE, OCIR, dynamic groups y policies.
-- Docker Desktop o Docker Engine disponible en la maquina de trabajo.
-- OCI CLI configurado para crear repositorios y descargar kubeconfig.
-- `kubectl` compatible con el cluster.
 - Auth token OCI para `docker login` contra OCIR.
 - Compartimento dedicado recomendado para el workshop.
+- Cloud Shell con acceso a internet si el repositorio se clonara desde GitHub.
+
+Cloud Shell ya trae OCI CLI preautenticado, Git, Python, `kubectl`, `helm`, `podman` y un alias `docker` compatible con `podman`. No se requiere configurar OCI CLI localmente.
+
+## Paso 0 - Abrir Cloud Shell y clonar el repositorio
+
+1. En OCI Console, seleccionar la region del workshop.
+2. Abrir Cloud Shell desde el icono superior de la consola.
+3. Verificar acceso OCI:
+
+```bash
+oci os ns get
+oci iam region-subscription list --query 'data[]."region-name"'
+```
+
+4. Clonar el repositorio:
+
+```bash
+git clone https://github.com/JohnContrerasDiaz/DevOps-OKE.git
+cd DevOps-OKE
+```
+
+Si el repositorio es privado, usar el mecanismo de autenticacion GitHub aprobado para el workshop. No poner tokens dentro del repositorio ni dentro de URLs versionadas.
 
 ## Variables del workshop
 
-Definir estos valores antes de ejecutar comandos:
+Definir estos valores en Cloud Shell antes de ejecutar comandos:
 
-```powershell
-$env:OCI_REGION = "us-chicago-1"
-$env:OCIR_REGION_KEY = "<region-key>"            # ejemplo: iad, phx, gru, bog, ord
-$env:TENANCY_NAMESPACE = "<object-storage-namespace>"
-$env:WORKSHOP_COMPARTMENT_OCID = "<compartment-ocid>"
-$env:WORKSHOP_COMPARTMENT_NAME = "<compartment-name>"
-$env:OCI_USERNAME = "<identity-domain>/<user-email>"
-$env:OCI_AUTH_TOKEN = "<auth-token>"
-$env:OCI_GENAI_MODEL_ID = "meta.llama-4-maverick-17b-128e-instruct-fp8"
+```bash
+export OCI_REGION="us-chicago-1"
+export OCIR_REGION_KEY="ord"                         # ejemplo: iad, phx, gru, bog, ord
+export TENANCY_NAMESPACE="$(oci os ns get --query data --raw-output)"
+export WORKSHOP_COMPARTMENT_OCID="<compartment-ocid>"
+export WORKSHOP_COMPARTMENT_NAME="<compartment-name>"
+export OCI_USERNAME="<identity-domain>/<user-email>" # ejemplo: oracleidentitycloudservice/user@company.com
+export OCI_GENAI_MODEL_ID="meta.llama-4-maverick-17b-128e-instruct-fp8"
+export REPOSITORY_PREFIX="devops-oke"
+export TAG="1.0.0"
 ```
 
-No escribir `$env:OCI_AUTH_TOKEN` en archivos del repositorio.
+No exportar el auth token en archivos. Para la sesion interactiva, leerlo de forma oculta:
+
+```bash
+read -rsp "OCI Auth Token: " OCI_AUTH_TOKEN; echo
+```
 
 ## Paso 1 - IAM base para operadores
 
@@ -80,32 +109,34 @@ Opcion por wizard:
 3. Crear repositorio privado `devops-oke/backend`.
 4. Crear repositorio privado `devops-oke/frontend`.
 
-Opcion por OCI CLI:
+Opcion por OCI CLI desde Cloud Shell:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\create-ocir-repositories.ps1 `
-  -CompartmentId $env:WORKSHOP_COMPARTMENT_OCID `
-  -RepositoryPrefix "devops-oke"
+```bash
+bash scripts/create-ocir-repositories.sh
 ```
 
-## Paso 3 - Login a OCIR
+## Paso 3 - Login a OCIR desde Cloud Shell
 
 El usuario de Docker contra OCIR usa el formato `<namespace>/<username>`. En usuarios federados, incluir el identity domain, por ejemplo `<namespace>/oracleidentitycloudservice/user@company.com`.
 
-```powershell
-docker login "$env:OCIR_REGION_KEY.ocir.io" `
-  --username "$env:TENANCY_NAMESPACE/$env:OCI_USERNAME" `
-  --password $env:OCI_AUTH_TOKEN
+```bash
+printf '%s' "$OCI_AUTH_TOKEN" | docker login "${OCIR_REGION_KEY}.ocir.io" \
+  --username "${TENANCY_NAMESPACE}/${OCI_USERNAME}" \
+  --password-stdin
+```
+
+En Cloud Shell, `docker` es un wrapper compatible sobre `podman`. Si se prefiere usar `podman` directamente:
+
+```bash
+printf '%s' "$OCI_AUTH_TOKEN" | podman login "${OCIR_REGION_KEY}.ocir.io" \
+  --username "${TENANCY_NAMESPACE}/${OCI_USERNAME}" \
+  --password-stdin
 ```
 
 ## Paso 4 - Construir y publicar imagenes
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-and-push.ps1 `
-  -OcirRegionKey $env:OCIR_REGION_KEY `
-  -TenancyNamespace $env:TENANCY_NAMESPACE `
-  -RepositoryPrefix "devops-oke" `
-  -Tag "1.0.0"
+```bash
+bash scripts/build-and-push.sh
 ```
 
 El script publica:
@@ -113,6 +144,13 @@ El script publica:
 ```text
 <region-key>.ocir.io/<namespace>/devops-oke/backend:1.0.0
 <region-key>.ocir.io/<namespace>/devops-oke/frontend:1.0.0
+```
+
+Definir las imagenes para el despliegue:
+
+```bash
+export BACKEND_IMAGE="${OCIR_REGION_KEY}.ocir.io/${TENANCY_NAMESPACE}/${REPOSITORY_PREFIX}/backend:${TAG}"
+export FRONTEND_IMAGE="${OCIR_REGION_KEY}.ocir.io/${TENANCY_NAMESPACE}/${REPOSITORY_PREFIX}/frontend:${TAG}"
 ```
 
 ## Paso 5 - Crear cluster OKE con wizard
@@ -155,60 +193,46 @@ Allow dynamic-group dg-devops-oke-workers to use generative-ai-family in compart
 
 Esperar unos minutos a que IAM propague los cambios.
 
-## Paso 7 - Descargar kubeconfig
-
-Opcion Cloud Shell:
+## Paso 7 - Descargar kubeconfig en Cloud Shell
 
 1. Abrir el cluster en OKE.
 2. Acciones > `Access cluster`.
 3. Elegir `Cloud Shell Access`.
-4. Ejecutar el comando `oci ce cluster create-kubeconfig` que muestra el wizard.
+4. Ejecutar en Cloud Shell el comando `oci ce cluster create-kubeconfig` que muestra el wizard.
 5. Validar:
 
 ```bash
 kubectl get nodes
 ```
 
-Opcion local Windows:
-
-1. Abrir `Access cluster`.
-2. Elegir `Local Access`.
-3. Ejecutar el comando generado por OCI CLI.
-4. Validar desde PowerShell:
-
-```powershell
-kubectl get nodes
-```
-
 ## Paso 8 - Crear secret de OCIR en Kubernetes
 
-```powershell
-kubectl create namespace app-demo
-kubectl create secret docker-registry ocir-secret `
-  --namespace app-demo `
-  --docker-server="$env:OCIR_REGION_KEY.ocir.io" `
-  --docker-username="$env:TENANCY_NAMESPACE/$env:OCI_USERNAME" `
-  --docker-password="$env:OCI_AUTH_TOKEN" `
-  --docker-email="workshop@example.com"
+```bash
+kubectl create namespace app-demo --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n app-demo create secret docker-registry ocir-secret \
+  --docker-server="${OCIR_REGION_KEY}.ocir.io" \
+  --docker-username="${TENANCY_NAMESPACE}/${OCI_USERNAME}" \
+  --docker-password="${OCI_AUTH_TOKEN}" \
+  --docker-email="workshop@example.com" \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ## Paso 9 - Renderizar manifest Kubernetes
 
-```powershell
-$backendImage = "$env:OCIR_REGION_KEY.ocir.io/$env:TENANCY_NAMESPACE/devops-oke/backend:1.0.0"
-$frontendImage = "$env:OCIR_REGION_KEY.ocir.io/$env:TENANCY_NAMESPACE/devops-oke/frontend:1.0.0"
+```bash
+bash scripts/render-k8s-manifest.sh
+```
 
-powershell -ExecutionPolicy Bypass -File .\scripts\render-k8s-manifest.ps1 `
-  -OciRegion $env:OCI_REGION `
-  -OciCompartmentId $env:WORKSHOP_COMPARTMENT_OCID `
-  -BackendImage $backendImage `
-  -FrontendImage $frontendImage `
-  -ModelId $env:OCI_GENAI_MODEL_ID
+El archivo renderizado queda en:
+
+```text
+APP-DEMO/k8s/aplicaciones-demo.rendered.yaml
 ```
 
 ## Paso 10 - Desplegar microservicios
 
-```powershell
+```bash
 kubectl apply -f APP-DEMO/k8s/aplicaciones-demo.rendered.yaml
 kubectl -n app-demo rollout status deployment/backend-ai
 kubectl -n app-demo rollout status deployment/frontend-ai
@@ -222,11 +246,18 @@ Cuando el servicio `frontend-ai-svc` tenga `EXTERNAL-IP`, abrir:
 http://<EXTERNAL-IP>
 ```
 
+Tambien se puede obtener la URL con:
+
+```bash
+export FRONTEND_IP="$(kubectl -n app-demo get svc frontend-ai-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+echo "http://${FRONTEND_IP}"
+```
+
 ## Paso 11 - Validaciones
 
 Backend:
 
-```powershell
+```bash
 kubectl -n app-demo logs deployment/backend-ai
 kubectl -n app-demo port-forward svc/backend-ai-svc 8000:8000
 curl http://localhost:8000/health
@@ -234,7 +265,7 @@ curl http://localhost:8000/health
 
 Frontend:
 
-```powershell
+```bash
 kubectl -n app-demo logs deployment/frontend-ai
 ```
 
@@ -251,10 +282,11 @@ Prueba funcional:
 - `ImagePullBackOff`: revisar `ocir-secret`, auth token, region key y namespace.
 - `LoadBalancer` sin IP: revisar cuota/policy de load balancer y subnets publicas.
 - `OCI_COMPARTMENT_ID is required`: revisar ConfigMap renderizado.
+- `docker: command not found`: usar `podman` directamente con `export CONTAINER_CLI=podman` y repetir `bash scripts/build-and-push.sh`.
 
 ## Limpieza
 
-```powershell
+```bash
 kubectl delete namespace app-demo
 ```
 
