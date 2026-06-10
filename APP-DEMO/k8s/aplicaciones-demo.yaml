@@ -1,0 +1,2 @@
+# Render this file from aplicaciones-demo.template.yaml with scripts/render-k8s-manifest.ps1.
+# The generated file is ignored by Git to avoid committing environment-specific OCIDs and image tags.

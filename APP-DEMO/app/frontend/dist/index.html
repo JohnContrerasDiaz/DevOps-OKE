@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPM | Inteligencia Artificial Soberana</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .epm-gradient { background: linear-gradient(135deg, #004a99 0%, #00a1e4 100%); }
+        body { background-color: #0a0e14; color: #e5e7eb; font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <header class="p-6 border-b border-gray-800 flex justify-between items-center glass">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 epm-gradient rounded-lg flex items-center justify-center font-bold text-white">EPM</div>
+            <h1 class="text-xl font-semibold tracking-tight">Sovereign GenAI Platform</h1>
+        </div>
+        <div class="flex items-center space-x-4 text-xs">
+            <span class="flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> mTLS Active</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span> OCI Resource Principal</span>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl w-full mx-auto p-6 overflow-y-auto space-y-6" id="chat-container">
+        <div class="glass p-5 rounded-2xl max-w-[80%] border-white/10">
+            <p class="text-sm opacity-70 mb-1">EPM AI Assistant</p>
+            <p>Bienvenido al nodo de Inteligencia Soberana. Consultas cifradas en infraestructura OCI.</p>
+        </div>
+    </main>
+
+    <footer class="p-8 glass border-t border-gray-800">
+        <div class="max-w-5xl mx-auto relative">
+            <input type="text" id="user-input" class="w-full bg-gray-900 border border-gray-700 rounded-xl py-4 px-6 focus:outline-none focus:border-blue-500 transition-all" placeholder="Consulta técnica o estratégica...">
+            <button onclick="sendQuery()" class="absolute right-3 top-2.5 epm-gradient px-6 py-2 rounded-lg font-medium hover:opacity-90">Enviar</button>
+        </div>
+        <p class="text-center text-[10px] text-gray-500 mt-4 uppercase tracking-widest">Security Layer: OCI Vault • Istio mTLS • Image Scanning Verified</p>
+    </footer>
+
+    <script>
+        async function sendQuery() {
+            const input = document.getElementById('user-input');
+            const container = document.getElementById('chat-container');
+            if (!input.value) return;
+            container.innerHTML += `<div class="ml-auto glass bg-blue-600/20 p-5 rounded-2xl max-w-[80%] text-right border-blue-500/30"><p>${input.value}</p></div>`;
+            try {
+                const res = await fetch('/api/ask', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({prompt: input.value}) });
+                const data = await res.json();
+                container.innerHTML += `<div class="glass p-5 rounded-2xl max-w-[80%] border-white/10"><p>${data.response}</p></div>`;
+            } catch (e) { console.error(e); }
+            input.value = '';
+        }
+    </script>
+</body>
+</html>

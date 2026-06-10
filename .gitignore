@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# OCI/API key material must not be committed
+*.pem
+*.key
+APP-DEMO/app/backend/oci/
+
+# Local rendered/deployment artifacts
+APP-DEMO/k8s/*.rendered.yaml
+.kube/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
