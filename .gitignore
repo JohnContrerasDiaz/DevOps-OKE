@@ -11,6 +11,8 @@ APP-DEMO/app/backend/oci/
 
 # Local rendered/deployment artifacts
 APP-DEMO/k8s/*.rendered.yaml
+WORDPRESS-OKE/.env.oke
+WORDPRESS-OKE/k8s/*.rendered.yaml
 .kube/
 
 # OS/editor

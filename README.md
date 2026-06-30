@@ -291,3 +291,13 @@ kubectl delete namespace app-demo
 ```
 
 Luego eliminar el Load Balancer residual si queda en OCI y destruir el cluster OKE desde Console cuando termine el laboratorio.
+
+## Modulo complementario - WordPress en OKE
+
+El repositorio incluye un segundo ejercicio para reutilizar imagenes WordPress y MySQL almacenadas en OCIR y desplegarlas en el cluster con persistencia y un Load Balancer publico.
+
+La practica se ejecuta con comandos individuales desde OCI Cloud Shell, sin script de despliegue:
+
+- [Guia WordPress en OKE](WORDPRESS-OKE/README.md)
+- [Template Kubernetes](WORDPRESS-OKE/k8s/wordpress-oke.yaml.template)
+- [Variables de ejemplo](WORDPRESS-OKE/.env.oke.example)
