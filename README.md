@@ -301,3 +301,5 @@ La practica se ejecuta con comandos individuales desde OCI Cloud Shell, sin scri
 - [Guia WordPress en OKE](WORDPRESS-OKE/README.md)
 - [Template Kubernetes](WORDPRESS-OKE/k8s/wordpress-oke.yaml.template)
 - [Variables de ejemplo](WORDPRESS-OKE/.env.oke.example)
+
+![Flujo didactico del modulo WordPress en OKE](WORDPRESS-OKE/images/flujo-laboratorio-wordpress-oke.png)

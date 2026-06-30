@@ -4,20 +4,15 @@ Este modulo despliega una replica de WordPress y una replica de MySQL usando ima
 
 ## Arquitectura
 
-```mermaid
-flowchart LR
-    U[Usuario] --> LB[OCI Load Balancer]
-    LB --> WPS[Service wordpress]
-    WPS --> WP[Pod WordPress]
-    WP --> MS[Service mysql privado]
-    MS --> MY[Pod MySQL]
-    WP --> WPD[(Block Volume 50 GiB)]
-    MY --> MYD[(Block Volume 50 GiB)]
-    OCIR[OCIR] --> WP
-    OCIR --> MY
-```
+![Arquitectura WordPress en Oracle Kubernetes Engine](images/arquitectura-wordpress-oke.png)
 
 Cada PVC usa la clase `oci-bv` con acceso `ReadWriteOnce`. Por ello este ejercicio mantiene una replica por Deployment.
+
+## Flujo didactico
+
+![Flujo del laboratorio WordPress en OKE](images/flujo-laboratorio-wordpress-oke.png)
+
+Los archivos SVG editables de ambos diagramas estan disponibles en este mismo directorio `images/`.
 
 ## 1. Prerrequisitos
 
