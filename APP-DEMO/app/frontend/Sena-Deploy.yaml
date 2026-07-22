@@ -1,0 +1,191 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apache-lb-demo
+  labels:
+    app: apache-lb-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: apache-lb-demo
+  template:
+    metadata:
+      labels:
+        app: apache-lb-demo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: apache
+          image: docker.io/library/httpd:2.4-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /usr/local/apache2/htdocs/index.html <<EOF
+              <!DOCTYPE html>
+              <html lang="es">
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Apache OKE Load Balancer Demo</title>
+                <style>
+                  body {
+                    margin: 0;
+                    font-family: Arial, Helvetica, sans-serif;
+                    background: linear-gradient(135deg, #1f2937, #111827);
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                  }
+                  .card {
+                    background: #ffffff;
+                    color: #111827;
+                    border-radius: 24px;
+                    padding: 40px;
+                    width: 90%;
+                    max-width: 760px;
+                    text-align: center;
+                    box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+                  }
+                  .badge {
+                    display: inline-block;
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 22px;
+                    border-radius: 999px;
+                    font-size: 18px;
+                    margin-bottom: 25px;
+                  }
+                  .pod {
+                    font-size: 34px;
+                    font-weight: bold;
+                    color: #16a34a;
+                    word-break: break-word;
+                    margin: 20px 0;
+                  }
+                  .grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                    gap: 16px;
+                    margin-top: 30px;
+                  }
+                  .box {
+                    background: #f3f4f6;
+                    border-radius: 16px;
+                    padding: 18px;
+                    border: 1px solid #e5e7eb;
+                  }
+                  .label {
+                    font-size: 13px;
+                    color: #6b7280;
+                    text-transform: uppercase;
+                    letter-spacing: 0.06em;
+                  }
+                  .value {
+                    margin-top: 8px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #111827;
+                    word-break: break-word;
+                  }
+                  .footer {
+                    margin-top: 30px;
+                    font-size: 14px;
+                    color: #6b7280;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="card">
+                  <div class="badge">OKE Load Balancer Demo</div>
+                  <h1>Solicitud atendida por:</h1>
+                  <div class="pod">$POD_NAME</div>
+
+                  <div class="grid">
+                    <div class="box">
+                      <div class="label">Namespace</div>
+                      <div class="value">$POD_NAMESPACE</div>
+                    </div>
+                    <div class="box">
+                      <div class="label">Pod IP</div>
+                      <div class="value">$POD_IP</div>
+                    </div>
+                    <div class="box">
+                      <div class="label">Nodo</div>
+                      <div class="value">$NODE_NAME</div>
+                    </div>
+                  </div>
+
+                  <div class="footer">
+                    Refresca la página varias veces para observar cómo el Load Balancer distribuye tráfico entre los 3 pods.
+                  </div>
+                </div>
+              </body>
+              </html>
+              EOF
+
+              httpd-foreground
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apache-lb-demo
+  labels:
+    app: apache-lb-demo
+spec:
+  type: LoadBalancer
+  selector:
+    app: apache-lb-demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  sessionAffinity: None
