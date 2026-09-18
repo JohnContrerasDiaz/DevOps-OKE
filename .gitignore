@@ -15,6 +15,14 @@ WORDPRESS-OKE/.env.oke
 WORDPRESS-OKE/k8s/*.rendered.yaml
 .kube/
 
+# Terraform / OCI Resource Manager local artifacts
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+dist/
+
 # OS/editor
 .DS_Store
 Thumbs.db

@@ -19,6 +19,8 @@ El flujo completo cubre clone del repositorio en Cloud Shell, build de imagenes 
 - Pushing images to OCIR with Docker CLI: https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrypushingimagesusingthedockercli.htm
 - Pulling images from OCIR during OKE deployment: https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengpullingimagesfromocir.htm
 - IAM policies for OCI Generative AI: https://docs.oracle.com/en-us/iaas/Content/generative-ai/iam-policies.htm
+- OKE network example 4 (OCI CNI, private API/workers, public load balancers): https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengnetworkconfigexample.htm#example-oci-cni-privatek8sapi_privateworkers_publiclb
+- Resource Manager schema documents: https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/terraformconfigresourcemanager_topic-schema.htm
 
 ## Estructura del repositorio
 
@@ -34,7 +36,9 @@ DevOps-OKE/
   scripts/
     build-and-push.sh
     create-ocir-repositories.sh
+    package-orm-stack.sh
     render-k8s-manifest.sh
+  terraform/oke-vcn-private-api/ # Stack OCI Resource Manager para la VCN OKE
 ```
 
 ## Prerrequisitos
@@ -153,21 +157,38 @@ export BACKEND_IMAGE="${OCIR_REGION_KEY}.ocir.io/${TENANCY_NAMESPACE}/${REPOSITO
 export FRONTEND_IMAGE="${OCIR_REGION_KEY}.ocir.io/${TENANCY_NAMESPACE}/${REPOSITORY_PREFIX}/frontend:${TAG}"
 ```
 
-## Paso 5 - Crear cluster OKE con wizard
+## Paso 5 - Crear la VCN y el cluster OKE con wizards
 
-Ruta en Console:
+El stack de `terraform/oke-vcn-private-api` implementa una VCN `172.16.0.0/16` para OCI CNI con API privada, workers y pods privados, load balancers publicos y una subred publica `bastion` para una VM jump host. El stack no crea la VM bastion ni usa el servicio OCI Bastion.
+
+Empaquetar el stack desde Cloud Shell:
+
+```bash
+bash scripts/package-orm-stack.sh
+```
+
+En Console:
+
+1. Abrir `Developer Services` > `Resource Manager` > `Stacks`.
+2. Seleccionar `Create stack` > `My configuration` y cargar `dist/oke-vcn-private-api-resource-manager.zip`.
+3. Elegir el compartimento y la region.
+4. Indicar `Bastion SSH ingress CIDR` con la IP publica administrativa en formato `/32`.
+5. Ejecutar primero `Plan` y luego `Apply`.
+6. Copiar los OCID de VCN y subnets mostrados en `Outputs`.
+
+Luego crear el cluster:
 
 1. Abrir `Developer Services` > `Kubernetes Clusters (OKE)`.
-2. Seleccionar `Create cluster`.
-3. Elegir `Quick Create` para el workshop.
-4. Nombre: `oke-devops-workshop`.
-5. Compartimento: el compartimento del workshop.
-6. Kubernetes version: usar la version default recomendada por OCI.
-7. Visibilidad de API endpoint: publica para laboratorio simple; privada si se usara Bastion/VPN.
-8. Worker nodes: managed nodes, 2 nodos, shape economico disponible para el tenancy.
-9. Crear el cluster y esperar a que el node pool quede `Active`.
+2. Seleccionar `Create cluster` > `Custom Create`.
+3. Seleccionar la VCN creada por el stack.
+4. Configurar el API endpoint como privado y seleccionar el output `kubernetes_api_subnet_id`.
+5. Elegir `OCI VCN-Native Pod Networking CNI`.
+6. Para el node pool administrado, seleccionar `worker_nodes_subnet_id`.
+7. Para pods, seleccionar `pods_subnet_id`.
+8. Para load balancers, seleccionar `load_balancers_subnet_id`.
+9. Crear el cluster y esperar a que el cluster y el node pool queden `Active`.
 
-Quick Create crea automaticamente recursos de red regionales para API endpoint, worker nodes y load balancers. Para escenarios corporativos, usar `Custom Create` y seleccionar VCN/subnets existentes.
+La configuracion detallada, las policies de Resource Manager y el acceso al API privado mediante una VM bastion estan en `terraform/oke-vcn-private-api/README.md`.
 
 ## Paso 6 - Crear dynamic group para instance principal
 
