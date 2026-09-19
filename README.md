@@ -170,8 +170,8 @@ bash scripts/package-orm-stack.sh
 En Console:
 
 1. Abrir `Developer Services` > `Resource Manager` > `Stacks`.
-2. Seleccionar `Create stack` > `My configuration` y cargar `dist/oke-vcn-private-api-resource-manager.zip`.
-3. Elegir el compartimento y la region.
+2. Seleccionar `Create stack` > `My configuration` > `.Zip file` y cargar `dist/oke-vcn-private-api-resource-manager.zip`. No cargar la carpeta sin comprimir.
+3. Elegir el compartimento, la region y Terraform version `1.5.x` (`1.5.7`).
 4. Indicar `Bastion SSH ingress CIDR` con la IP publica administrativa en formato `/32`.
 5. Ejecutar primero `Plan` y luego `Apply`.
 6. Copiar los OCID de VCN y subnets mostrados en `Outputs`.

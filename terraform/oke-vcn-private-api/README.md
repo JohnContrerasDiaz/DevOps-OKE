@@ -58,23 +58,28 @@ bash scripts/package-orm-stack.sh
 unzip -l dist/oke-vcn-private-api-resource-manager.zip
 ```
 
-Los archivos `.tf` y `orm_schema.yaml` quedan en la raiz del ZIP, como requiere Resource Manager.
+Los archivos `.tf`, `.terraform.lock.hcl` y `orm_schema.yaml` quedan en la raiz del ZIP, como requiere Resource Manager. Se carga el ZIP completo; no se debe seleccionar la carpeta `terraform/oke-vcn-private-api` en este flujo.
+
+## Version de Terraform en Resource Manager
+
+El stack exige Terraform `>= 1.5.0, < 1.6.0`. Al crear el stack, seleccionar `1.5.x`; actualmente Resource Manager ejecuta esa opcion con Terraform CLI `1.5.7`. Esto evita la actualizacion automatica y la descontinuacion de versiones anteriores a `1.5.x`.
 
 ## Crear el stack con el wizard
 
 1. En OCI Console, abrir `Developer Services` > `Resource Manager` > `Stacks`.
 2. Seleccionar `Create stack`.
-3. Elegir `My configuration` y cargar `dist/oke-vcn-private-api-resource-manager.zip`.
+3. Elegir `My configuration` > `.Zip file` y cargar `dist/oke-vcn-private-api-resource-manager.zip`.
 4. Seleccionar el compartimento del workshop.
-5. Verificar el nombre y seleccionar `Next`.
-6. En `Bastion SSH ingress CIDR`, escribir la IP publica administrativa con `/32`, por ejemplo `203.0.113.10/32`.
-7. Mantener `Load balancer ingress CIDR` en `0.0.0.0/0` para el laboratorio o restringirlo a la red del participante.
-8. Seleccionar `Next` y revisar la configuracion.
-9. Crear el stack sin ejecutar Apply automaticamente.
-10. Abrir el stack y ejecutar un job `Plan`.
-11. Revisar que el plan cree una VCN, tres gateways, cinco route tables, cinco security lists y cinco subnets.
-12. Ejecutar un job `Apply`.
-13. Abrir `Outputs` y copiar los OCID.
+5. En `Terraform version`, seleccionar `1.5.x`.
+6. Verificar el nombre y seleccionar `Next`.
+7. En `Bastion SSH ingress CIDR`, escribir la IP publica administrativa con `/32`, por ejemplo `203.0.113.10/32`.
+8. Mantener `Load balancer ingress CIDR` en `0.0.0.0/0` para el laboratorio o restringirlo a la red del participante.
+9. Seleccionar `Next` y revisar la configuracion.
+10. Crear el stack sin ejecutar Apply automaticamente.
+11. Abrir el stack y ejecutar un job `Plan`.
+12. Revisar que el plan cree una VCN, tres gateways, cinco route tables, cinco security lists y cinco subnets.
+13. Ejecutar un job `Apply`.
+14. Abrir `Outputs` y copiar los OCID.
 
 ## Seleccion en OKE Custom Create
 
@@ -136,7 +141,8 @@ Terraform viene disponible en OCI Cloud Shell. Antes de cargar el ZIP tambien se
 
 ```bash
 cd terraform/oke-vcn-private-api
-terraform init -backend=false
+terraform version  # debe mostrar 1.5.x para reproducir Resource Manager
+terraform init -backend=false -input=false
 terraform fmt -check -recursive
 terraform validate
 cd ../..
@@ -149,3 +155,5 @@ No ejecutar `terraform apply` desde Cloud Shell si el estado sera administrado p
 - Oracle OKE example 4: https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengnetworkconfigexample.htm#example-oci-cni-privatek8sapi_privateworkers_publiclb
 - Network resource configuration: https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengnetworkconfig.htm
 - Resource Manager schema documents: https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/terraformconfigresourcemanager_topic-schema.htm
+- Resource Manager supported Terraform versions: https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Reference/terraformversions.htm
+- Creating a stack from a ZIP file: https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/create-stack-local.htm
